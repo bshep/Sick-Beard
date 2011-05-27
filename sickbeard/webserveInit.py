@@ -46,12 +46,10 @@ def initWebServer(options = {}):
         #HTTP Errors
         def http_error_401_hander(status, message, traceback, version):
             args = [status, message, traceback, version]
-            if int(status) == 401:
-                logger.log(u"Authentication error, check cherrypy log for more details", logger.WARNING)
-            else:
-                logger.log(u"CherryPy caught an error: %s %s" % (status, message), logger.ERROR)
-                logger.log(traceback, logger.DEBUG)
-            return "<html><body><h1>Error %s</h1>Something unexpected has happened. Please check the log.</body></html>" % args[0]
+
+            logger.log(u"Authentication error, check cherrypy log for more details", logger.WARNING)
+
+            return "<html><body><h1>401 - Unauthorized</h1></body></html>"
         cherrypy.config.update({'error_page.401' : http_error_401_hander})
 
         # setup cherrypy logging
