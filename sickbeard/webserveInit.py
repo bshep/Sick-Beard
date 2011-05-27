@@ -23,6 +23,8 @@ import os.path
 from sickbeard import logger
 from sickbeard.webserve import WebInterface
 
+import struct, socket
+
 def initWebServer(options = {}):
         options.setdefault('port',      8081)
         options.setdefault('host',      '0.0.0.0')
@@ -30,6 +32,7 @@ def initWebServer(options = {}):
         options.setdefault('username',    '')
         options.setdefault('password',    '')
         options.setdefault('web_root',   '/')
+        options.setdefault('ip_whitelist',   '')
         assert isinstance(options['port'], int)
         assert 'data_root' in options
 
@@ -76,6 +79,40 @@ def initWebServer(options = {}):
                         },
         }
         app = cherrypy.tree.mount(WebInterface(), options['web_root'], conf)
+
+        #trusted networks
+        if options['ip_whitelist'] != "":
+                def addressInNetwork(ip,net):
+                        "Is an address in a network"
+                        ipaddr = struct.unpack('>L',socket.inet_aton(ip))[0]
+                        netaddr,bits = net.split('/')
+                        ipnet = struct.unpack('>L',socket.inet_aton(netaddr))[0]
+                        mask = ((2L<<(int(bits))-1) - 1)<<(32-int(bits))
+                        # print net.split('/')
+                        # print bin(ipaddr)
+                        # print bin(ipnet)
+                        # print bin(mask)
+                        # print bin(ipaddr & mask)
+                        # print bin(ipnet & mask)
+                        return ipaddr & mask == ipnet & mask
+
+                def check_ip():
+                        for whitelist_network in options['ip_whitelist'].split(','):
+                                if addressInNetwork(cherrypy.request.remote.ip, whitelist_network.strip()):
+                                        old_hooks = cherrypy.request.hooks['before_handler']
+                                        new_hooks = []
+                                        for hook in old_hooks:
+                                                if hook.callback != cherrypy.lib.auth_basic.basic_auth:
+                                                        new_hooks.append(hook)
+
+                                        cherrypy.request.hooks['before_handler'] = new_hooks
+                                        #logger.log('Disabled auth on local request')
+                        return True
+
+                checkipaddress = cherrypy.Tool('on_start_resource', check_ip, 1)
+                cherrypy.tools.checkipaddress = checkipaddress
+
+                app.merge({'/': { 'tools.checkipaddress.on': True } })
 
         # auth
         if options['username'] != "" and options['password'] != "":
