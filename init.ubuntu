@@ -34,6 +34,9 @@ DESC=SickBeard
 RUN_AS=SICKBEARD_USER
 
 ############### END EDIT ME ##################
+if [ -r /etc/default/$NAME ]; then
+        . /etc/default/$NAME
+fi
 
 test -x $DAEMON || exit 0
 
