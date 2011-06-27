@@ -45,10 +45,22 @@ def initWebServer(options = {}):
 
         #HTTP Errors
         def http_error_401_hander(status, message, traceback, version):
+            import binascii
+            import base64
             args = [status, message, traceback, version]
 
             logger.log(u"Authentication error, check cherrypy log for more details", logger.WARNING)
-
+            logger.log(u" - IP = %s" % str(cherrypy.request.remote.ip), logger.WARNING)
+            auth_header = cherrypy.request.headers.get('authorization')
+            if auth_header:
+                try:
+                    scheme, data = auth_header.split(' ', 1)
+                    username, password = base64.decodestring(data).split(':',1)
+                    logger.log(u" - Username = %s" % str(username), logger.WARNING)
+                except (ValueError, binascii.Error):
+                    raise cherrypy.HTTPError(400, 'Bad Request')
+            else:
+                logger.log(u" - No authentication supplied")
             return "<html><body><h1>401 - Unauthorized</h1></body></html>"
         cherrypy.config.update({'error_page.401' : http_error_401_hander})
 
