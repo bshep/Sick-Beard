@@ -50,6 +50,7 @@ def initWebServer(options = {}):
             args = [status, message, traceback, version]
 
             logger.log(u"Authentication error, check cherrypy log for more details", logger.WARNING)
+            logger.log(u" - URL = %s" % str(cherrypy.request.path_info), logger.WARNING)
             logger.log(u" - IP = %s" % str(cherrypy.request.remote.ip), logger.WARNING)
             auth_header = cherrypy.request.headers.get('authorization')
             if auth_header:
@@ -86,6 +87,11 @@ def initWebServer(options = {}):
                         '/css':    {
                                 'tools.staticdir.on':  True,
                                 'tools.staticdir.dir': 'css'
+                        },
+                        '/favicon.ico': {
+                                'tools.auth_basic.on':  False,
+                                'tools.staticdir.on':  True,
+                                'tools.staticdir.dir': 'images'
                         },
         }
         app = cherrypy.tree.mount(WebInterface(), options['web_root'], conf)
