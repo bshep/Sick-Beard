@@ -251,6 +251,11 @@ NMJ_MOUNT = None
 
 USE_SYNOINDEX = False
 
+USE_TRAKT = False
+TRAKT_USERNAME = None
+TRAKT_PASSWORD = None
+TRAKT_API = ''
+
 COMING_EPS_LAYOUT = None
 COMING_EPS_DISPLAY_PAUSED = None
 COMING_EPS_SORT = None
@@ -594,6 +599,11 @@ def initialize(consoleLogging=True):
         NMJ_MOUNT = check_setting_str(CFG, 'NMJ', 'nmj_mount', '')
 
         USE_SYNOINDEX = bool(check_setting_int(CFG, 'Synology', 'use_synoindex', 0))
+
+        USE_TRAKT = bool(check_setting_int(CFG, 'Trakt', 'use_trakt', 0))
+        TRAKT_USERNAME = check_setting_str(CFG, 'Trakt', 'trakt_username', '')
+        TRAKT_PASSWORD = check_setting_str(CFG, 'Trakt', 'trakt_password', '')
+        TRAKT_API = check_setting_str(CFG, 'Trakt', 'trakt_api', '')
 
         GIT_PATH = check_setting_str(CFG, 'General', 'git_path', '')
 
@@ -1101,6 +1111,12 @@ def save_config():
 
     new_config['Synology'] = {}
     new_config['Synology']['use_synoindex'] = int(USE_SYNOINDEX)
+
+    new_config['Trakt'] = {}
+    new_config['Trakt']['use_trakt'] = int(USE_TRAKT)
+    new_config['Trakt']['trakt_username'] = TRAKT_USERNAME
+    new_config['Trakt']['trakt_password'] = TRAKT_PASSWORD
+    new_config['Trakt']['trakt_api'] = TRAKT_API
 
     new_config['Newznab'] = {}
     new_config['Newznab']['newznab_data'] = '!!!'.join([x.configStr() for x in newznabProviderList])
