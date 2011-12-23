@@ -36,49 +36,40 @@ def initWebServer(options = {}):
         assert isinstance(options['port'], int)
         assert 'data_root' in options
 
-        def http_error_401_hander(status, message, traceback, version):
-            """ Custom handler for 401 error """
-            if status != "401 Unauthorized":
-                logger.log(u"CherryPy caught an error: %s %s" % (status, message), logger.ERROR)
-                logger.log(traceback, logger.DEBUG)
-            return r'''
-<html>
-    <head>
-        <title>%s</title>
-    </head>
-    <body>
-        <br/>
-        <font color="#0000FF">Error %s: You need to provide a valid username and password.</font>
-    </body>
-</html>
-''' % ('Access denied', status)
-
-#         def http_error_404_hander(status, message, traceback, version):
-#             """ Custom handler for 404 error, redirect back to main page """
+#         def http_error_401_hander(status, message, traceback, version):
+#             """ Custom handler for 401 error """
+#             if status != "401 Unauthorized":
+#                 logger.log(u"CherryPy caught an error: %s %s" % (status, message), logger.ERROR)
+#                 logger.log(traceback, logger.DEBUG)
 #             return r'''
 # <html>
 #     <head>
-#         <title>404</title>
-#         <script type="text/javascript" charset="utf-8">
-#           <!--
-#           location.href = "%s"
-#           //-->
-#         </script>
+#         <title>%s</title>
 #     </head>
 #     <body>
 #         <br/>
+#         <font color="#0000FF">Error %s: You need to provide a valid username and password.</font>
 #     </body>
 # </html>
-# ''' % '/'
+# ''' % ('Access denied', status)
 
-        # cherrypy setup
-        cherrypy.config.update({
-                'server.socket_port': options['port'],
-                'server.socket_host': options['host'],
-                'log.screen':         False,
-                'error_page.401':     http_error_401_hander,
-                'error_page.404':     http_error_404_hander,
-        })
+        def http_error_404_hander(status, message, traceback, version):
+            """ Custom handler for 404 error, redirect back to main page """
+            return r'''
+<html>
+    <head>
+        <title>404</title>
+        <script type="text/javascript" charset="utf-8">
+          <!--
+          location.href = "%s"
+          //-->
+        </script>
+    </head>
+    <body>
+        <br/>
+    </body>
+</html>
+''' % '/'
 
         #HTTP Errors
         def http_error_401_hander(status, message, traceback, version):
@@ -131,6 +122,15 @@ def initWebServer(options = {}):
                                 'tools.staticdir.dir': 'images'
                         },
         }
+        # cherrypy setup
+        cherrypy.config.update({
+                'server.socket_port': options['port'],
+                'server.socket_host': options['host'],
+                'log.screen':         False,
+                'error_page.401':     http_error_401_hander,
+                'error_page.404':     http_error_404_hander,
+        })
+
         app = cherrypy.tree.mount(WebInterface(), options['web_root'], conf)
 
         def addressInNetwork(ip,net):
