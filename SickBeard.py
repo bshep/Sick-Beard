@@ -275,7 +275,7 @@ def main():
                 'log_dir': log_dir,
                 'username': sickbeard.WEB_USERNAME,
                 'password': sickbeard.WEB_PASSWORD,
-                'ip_whitelist': sickbeard.WEB_IP_WHITELIST
+                'ip_whitelist': sickbeard.WEB_IP_WHITELIST,
                 'enable_https': sickbeard.ENABLE_HTTPS,
                 'https_port': sickbeard.HTTPS_PORT,
                 'https_cert': sickbeard.HTTPS_CERT,
