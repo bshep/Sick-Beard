@@ -277,7 +277,6 @@ def main():
                 'password': sickbeard.WEB_PASSWORD,
                 'ip_whitelist': sickbeard.WEB_IP_WHITELIST,
                 'enable_https': sickbeard.ENABLE_HTTPS,
-                'https_port': sickbeard.HTTPS_PORT,
                 'https_cert': sickbeard.HTTPS_CERT,
                 'https_key': sickbeard.HTTPS_KEY,
         })
