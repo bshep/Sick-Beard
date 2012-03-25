@@ -69,6 +69,14 @@ class PageTemplate (Template):
         self.sbHost = re.match("[^:]+", cherrypy.request.headers['Host'], re.X|re.M|re.S).group(0)
         self.projectHomePage = "http://code.google.com/p/sickbeard/"
 
+        if "X-Forwarded-Host" in cherrypy.request.headers:
+            self.sbHost = cherrypy.request.headers['X-Forwarded-Host']
+        if "X-Forwarded-Port" in cherrypy.request.headers:
+            self.sbHttpPort = cherrypy.request.headers['X-Forwarded-Port']
+            self.sbHttpsPort = self.sbHttpPort
+        if "X-Forwarded-Proto" in cherrypy.request.headers:
+            self.sbHttpsEnabled = True if cherrypy.request.headers['X-Forwarded-Proto'] == 'https' else False
+
         logPageTitle = 'Logs &amp; Errors'
         if len(classes.ErrorViewer.errors):
             logPageTitle += ' ('+str(len(classes.ErrorViewer.errors))+')'
@@ -1553,26 +1561,42 @@ class NewHomeAddShows:
                 lang = "en"
 
         baseURL = "http://thetvdb.com/api/GetSeries.php?"
+        nameUTF8 = name.encode('utf-8')
 
-        params = {'seriesname': name.encode('utf-8'),
+        # Use each word in the show's name as a possible search term
+        keywords = nameUTF8.split(' ')
+
+        # Insert the whole show's name as the first search term so best results are first
+        # ex: keywords = ['Some Show Name', 'Some', 'Show', 'Name']
+        keywords.insert(0, nameUTF8)
+
+        # Query the TVDB for each search term and build the list of results
+        results = []
+        for searchTerm in keywords:
+            params = {'seriesname': searchTerm,
                   'language': lang}
 
-        finalURL = baseURL + urllib.urlencode(params)
+            finalURL = baseURL + urllib.urlencode(params)
 
-        urlData = helpers.getURL(finalURL)
+            urlData = helpers.getURL(finalURL)
 
-        try:
-            seriesXML = etree.ElementTree(etree.XML(urlData))
-        except Exception, e:
-            logger.log(u"Unable to parse XML for some reason: "+ex(e)+" from XML: "+urlData, logger.ERROR)
-            return ''
+            try:
+                seriesXML = etree.ElementTree(etree.XML(urlData))
+            except Exception, e:
+                logger.log(u"Unable to parse XML for some reason: "+ex(e)+" from XML: "+urlData, logger.ERROR)
+                return ''
 
-        series = seriesXML.getiterator('Series')
+            series = seriesXML.getiterator('Series')
 
-        results = []
-
-        for curSeries in series:
-            results.append((int(curSeries.findtext('seriesid')), curSeries.findtext('SeriesName'), curSeries.findtext('FirstAired')))
+            # add each result to our list
+            for curSeries in series:
+                tvdb_id = int(curSeries.findtext('seriesid'))
+                
+                # don't add duplicates
+                if tvdb_id in [x[0] for x in results]:
+                    continue
+                
+                results.append((tvdb_id, curSeries.findtext('SeriesName'), curSeries.findtext('FirstAired')))
 
         lang_id = tvdb_api.Tvdb().config['langabbv_to_id'][lang]
 
