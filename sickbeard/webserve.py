@@ -2567,12 +2567,27 @@ class Home:
 
         ep_obj_rename_list = []
 
-        ep_obj_list = showObj.getAllEpisodes()
+        ep_obj_list = showObj.getAllEpisodes(has_location=True)
 
         for cur_ep_obj in ep_obj_list:
             # Only want to rename if we have a location
             if cur_ep_obj.location:
-                ep_obj_rename_list.append(cur_ep_obj)
+                if cur_ep_obj.relatedEps:
+                    # do we have one of multi-episodes in the rename list already
+                    have_already = False
+                    for cur_related_ep in cur_ep_obj.relatedEps + [cur_ep_obj]:
+                        if cur_related_ep in ep_obj_rename_list:
+                            have_already = True
+                            break
+                    if not have_already:
+                        ep_obj_rename_list.append(cur_ep_obj)
+
+                else:
+                    ep_obj_rename_list.append(cur_ep_obj)
+
+        if ep_obj_rename_list:
+            # present season DESC episode DESC on screen
+            ep_obj_rename_list.reverse()
 
         t = PageTemplate(file="testRename.tmpl")
         t.submenu = [{'title': 'Edit', 'path': 'home/editShow?show=%d' % showObj.tvdbid}]

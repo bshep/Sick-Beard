@@ -116,18 +116,39 @@ class TVShow(object):
                 self.episodes[curSeason][curEp] = None
                 del myEp
 
-    def getAllEpisodes(self, season=None):
+    def getAllEpisodes(self, season=None, has_location=False):
 
         myDB = db.DBConnection()
-        if season == None:
-            results = myDB.select("SELECT season, episode FROM tv_episodes WHERE showid = ? ORDER BY season DESC, episode DESC", [self.tvdbid])
-        else:
-            results = myDB.select("SELECT season, episode FROM tv_episodes WHERE showid = ? AND season = ? ORDER BY season DESC, episode DESC", [self.tvdbid, season])
+
+        sql_selection = "SELECT season, episode, "
+
+        # subselection to detect multi-episodes early, share_location > 0
+        sql_selection = sql_selection + " (SELECT COUNT (*) FROM tv_episodes WHERE showid = tve.showid AND season = tve.season AND location != '' AND location = tve.location AND episode != tve.episode) AS share_location "
+
+        sql_selection = sql_selection + " FROM tv_episodes tve WHERE showid = " + str(self.tvdbid)
+
+        if season is not None:
+            sql_selection = sql_selection + " AND season = " + str(season)
+        if has_location:
+            sql_selection = sql_selection + " AND location != '' "
+
+        # need ORDER episode ASC to rename multi-episodes in order S01E01-02
+        sql_selection = sql_selection + " ORDER BY season ASC, episode ASC"
+
+        results = myDB.select(sql_selection)
 
         ep_list = []
         for cur_result in results:
             cur_ep = self.getEpisode(int(cur_result["season"]), int(cur_result["episode"]))
             if cur_ep:
+                if cur_ep.location:
+                    # if there is a location, check if it's a multi-episode (share_location > 0) and put them in relatedEps
+                    if cur_result["share_location"] > 0:
+                        related_eps_result = myDB.select("SELECT * FROM tv_episodes WHERE showid = ? AND season = ? AND location = ? AND episode != ? ORDER BY episode ASC", [self.tvdbid, cur_ep.season, cur_ep.location, cur_ep.episode])
+                        for cur_related_ep in related_eps_result:
+                            related_ep = self.getEpisode(int(cur_related_ep["season"]), int(cur_related_ep["episode"]))
+                            if related_ep not in cur_ep.relatedEps:
+                                cur_ep.relatedEps.append(related_ep)
                 ep_list.append(cur_ep)
 
         return ep_list
@@ -1425,9 +1446,18 @@ class TVEpisode(object):
         
         def us(name):
             return re.sub('[ -]','_', name)
-        
+
+        def release_name(name):
+            if name and name.lower().endswith('.nzb'):
+                name = name.rpartition('.')[0]
+            return name
+
         def release_group(name):
+            if not name:
+                return ''
+
             np = NameParser(name)
+
             try:
                 parse_result = np.parse(name)
             except InvalidNameException, e:
@@ -1454,7 +1484,7 @@ class TVEpisode(object):
                    '%0S': '%02d' % self.season,
                    '%E': str(self.episode),
                    '%0E': '%02d' % self.episode,
-                   '%RN': self.release_name,
+                   '%RN': release_name(self.release_name),
                    '%RG': release_group(self.release_name),
                    '%AD': str(self.airdate).replace('-', ' '),
                    '%A.D': str(self.airdate).replace('-', '.'),
@@ -1480,7 +1510,7 @@ class TVEpisode(object):
             result_name = result_name.replace(cur_replacement.lower(), helpers.sanitizeFileName(replace_map[cur_replacement].lower()))
 
         return result_name
-        
+
     def _format_pattern(self, pattern=None, multi=None):
         """
         Manipulates an episode naming pattern and then fills the template in
@@ -1659,7 +1689,11 @@ class TVEpisode(object):
         Renames an episode file and all related files to the location and filename as specified
         in the naming settings.
         """
-        
+
+        if not ek.ek(os.path.isfile, self.location):
+            logger.log(u"Can't perform rename on " + self.location + " when it doesn't exist, skipping", logger.WARNING)
+            return
+
         proper_path = self.proper_path()
         absolute_proper_path = ek.ek(os.path.join, self.show.location, proper_path)
         absolute_current_path_no_ext, file_ext = os.path.splitext(self.location)
@@ -1669,7 +1703,7 @@ class TVEpisode(object):
         if absolute_current_path_no_ext.startswith(self.show.location):
             current_path = absolute_current_path_no_ext[len(self.show.location):]
 
-        logger.log(u"Renaming/moving episode from the base path "+self.location+" to "+absolute_proper_path, logger.DEBUG)
+        logger.log(u"Renaming/moving episode from the base path " + self.location + " to " + absolute_proper_path, logger.DEBUG)
 
         # if it's already named correctly then don't do anything
         if proper_path == current_path:
@@ -1677,16 +1711,16 @@ class TVEpisode(object):
             return
 
         related_files = postProcessor.PostProcessor(self.location)._list_associated_files(self.location)
-        logger.log(u"Files associated to "+self.location+": "+str(related_files), logger.DEBUG)
+        logger.log(u"Files associated to " + self.location + ": " + str(related_files), logger.DEBUG)
 
         # move the ep file
         result = helpers.rename_ep_file(self.location, absolute_proper_path)
-        
+
         # move related files
         for cur_related_file in related_files:
             cur_result = helpers.rename_ep_file(cur_related_file, absolute_proper_path)
             if cur_result == False:
-                logger.log(str(self.tvdbid) + ": Unable to rename file "+cur_related_file, logger.ERROR)
+                logger.log(str(self.tvdbid) + ": Unable to rename file " + cur_related_file, logger.ERROR)
 
         # save the ep
         with self.lock:
@@ -1696,7 +1730,7 @@ class TVEpisode(object):
                     relEp.location = absolute_proper_path + file_ext
 
         # in case something changed with the metadata just do a quick check
-        for curEp in [self]+self.relatedEps:
+        for curEp in [self] + self.relatedEps:
             curEp.checkForMetaFiles()
 
         # save any changes to the database

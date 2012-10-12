@@ -337,6 +337,7 @@ class QueueItemRefresh(ShowQueueItem):
 
         self.inProgress = False
 
+
 class QueueItemRename(ShowQueueItem):
     def __init__(self, show=None):
         ShowQueueItem.__init__(self, ShowQueueActions.RENAME, show)
@@ -353,13 +354,30 @@ class QueueItemRename(ShowQueueItem):
             logger.log(u"Can't perform rename on " + self.show.name + " when the show dir is missing.", logger.WARNING)
             return
 
-        ep_obj_list = self.show.getAllEpisodes()
+        ep_obj_rename_list = []
+
+        ep_obj_list = self.show.getAllEpisodes(has_location=True)
         for cur_ep_obj in ep_obj_list:
-        # Only want to rename if we have a location
+            # Only want to rename if we have a location
             if cur_ep_obj.location:
-                cur_ep_obj.rename()
+                if cur_ep_obj.relatedEps:
+                    # do we have one of multi-episodes in the rename list already
+                    have_already = False
+                    for cur_related_ep in cur_ep_obj.relatedEps + [cur_ep_obj]:
+                        if cur_related_ep in ep_obj_rename_list:
+                            have_already = True
+                            break
+                    if not have_already:
+                        ep_obj_rename_list.append(cur_ep_obj)
+
+                else:
+                    ep_obj_rename_list.append(cur_ep_obj)
+
+        for cur_ep_obj in ep_obj_rename_list:
+            cur_ep_obj.rename()
 
         self.inProgress = False
+
 
 class QueueItemUpdate(ShowQueueItem):
     def __init__(self, show=None):
