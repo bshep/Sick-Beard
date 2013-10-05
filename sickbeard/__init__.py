@@ -1012,11 +1012,8 @@ def save_config():
     new_config['General']['web_root'] = WEB_ROOT
     new_config['General']['web_username'] = WEB_USERNAME
     new_config['General']['web_password'] = WEB_PASSWORD
-<<<<<<< HEAD
     new_config['General']['web_ip_whitelist'] = WEB_IP_WHITELIST
-=======
     new_config['General']['anon_redirect'] = ANON_REDIRECT
->>>>>>> f6d5fa0c6ef9010a6c0bbbfc10ffca846f640981
     new_config['General']['use_api'] = int(USE_API)
     new_config['General']['api_key'] = API_KEY
     new_config['General']['enable_https'] = int(ENABLE_HTTPS)
